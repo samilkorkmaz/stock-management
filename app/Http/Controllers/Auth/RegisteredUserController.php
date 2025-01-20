@@ -13,6 +13,11 @@ use Illuminate\Validation\Rules;
 
 class RegisteredUserController extends Controller
 {
+    public function create(): \Illuminate\View\View
+    {
+        return view('auth.register');
+    }
+
     /**
      * Handle an incoming registration request.
      *
