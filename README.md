@@ -20,15 +20,13 @@ A simple stock management system built with Laravel 11 and Filament, allowing sh
 
 ## Installation
 ```
-git clone <repository-url>
+git clone https://github.com/samilkorkmaz/stock-management
 cd stock-management
 composer install
-npm install
-npm run build
+???npm install
+???npm run build
 cp .env.example .env
 php artisan key:generate
-DB_CONNECTION=sqlite
-touch database/database.sqlite
 php artisan migrate
 php artisan make:filament-user
 php artisan serve
