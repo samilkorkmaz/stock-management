@@ -34,7 +34,7 @@ npm install
 npm run build
 copy .env.example as .env
 php artisan key:generate
-php artisan migrate
+php artisan migrate:fresh --seed
 php artisan make:filament-user
 php artisan serve
 ```
@@ -59,33 +59,3 @@ Shop Operations:
 1. Log in as shop
 2. Create new stock requests
 3. View request status and allocated quantities
-
-Key files and their purposes:
-
-1. **Database Files**
-   - Migrations define the database structure
-   - SQLite database file stores all data
-
-2. **Models**
-   - `Shop.php`: Handles shop authentication and relationships
-   - `Item.php`: Manages inventory items
-   - `StockRequest.php`: Handles stock requests from shops
-
-3. **Controllers**
-   - `StockRequestController.php`: Manages shop stock request operations
-
-4. **Filament Admin**
-   - `AdminPanelProvider.php`: Configures the admin panel
-   - `ItemResource.php`: Manages inventory in admin panel
-   - `StockRequestResource.php`: Manages stock requests in admin panel
-
-5. **Views**
-   - `index.blade.php`: Shows shop's stock requests
-   - `create.blade.php`: Form for creating new stock requests
-
-6. **Configuration**
-   - Modified `auth.php` for shop authentication
-   - `.env` configured for SQLite
-
-7. **Routes**
-   - Modified `web.php` with shop and stock request routes
