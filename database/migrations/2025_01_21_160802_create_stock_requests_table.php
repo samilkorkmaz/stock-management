@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('item_id')->constrained()->cascadeOnDelete();
             $table->integer('quantity');
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-            $table->integer('allocated_quantity')->nullable();
+            $table->integer('allocated_quantity')->default(0);
             $table->timestamps();
         });
     }

@@ -1,24 +1,37 @@
 <?php
-// routes/web.php
 
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\StockRequestController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ShopController;
 
+/*
 Route::get('/', function () {
-    return redirect()->route('login');
+    return view('welcome');
 });
 
-Route::middleware(['auth'])->group(function () {
+Route::get('/dashboard', function () {
+    return view('dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+*/
 
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
+Route::get('/', function () {
+    return redirect()->route('dashboard');
+});
 
-    Route::resource('stock-requests', StockRequestController::class);
+Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard', [ShopController::class, 'dashboard'])->name('dashboard');
+    Route::post('/request-stock', [ShopController::class, 'requestStock'])->name('shop.request-stock');
+
+    // Add Breeze profile routes
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 require __DIR__.'/auth.php';

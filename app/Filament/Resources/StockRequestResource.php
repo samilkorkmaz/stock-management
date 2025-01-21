@@ -4,11 +4,15 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\StockRequestResource\Pages;
 use App\Models\StockRequest;
-use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Actions\Action;
+use Illuminate\Support\Facades\DB;
 
 class StockRequestResource extends Resource
 {
@@ -19,25 +23,25 @@ class StockRequestResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('shop_id')
+                Select::make('shop_id')
                     ->relationship('shop', 'name')
                     ->required(),
-                Forms\Components\Select::make('item_id')
+                Select::make('item_id')
                     ->relationship('item', 'name')
                     ->required(),
-                Forms\Components\TextInput::make('quantity')
-                    ->required()
-                    ->numeric(),
-                Forms\Components\Select::make('status')
+                TextInput::make('quantity')
+                    ->numeric()
+                    ->required(),
+                Select::make('status')
                     ->options([
                         'pending' => 'Pending',
                         'approved' => 'Approved',
                         'rejected' => 'Rejected',
                     ])
                     ->required(),
-                Forms\Components\TextInput::make('allocated_quantity')
+                TextInput::make('allocated_quantity')
                     ->numeric()
-                    ->nullable(),
+                    ->default(0),
             ]);
     }
 
@@ -45,36 +49,50 @@ class StockRequestResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('shop.name')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('item.name')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('quantity'),
-                Tables\Columns\TextColumn::make('status')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'pending' => 'warning',
-                        'approved' => 'success',
-                        'rejected' => 'danger',
-                    }),
-                Tables\Columns\TextColumn::make('allocated_quantity'),
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime(),
+                TextColumn::make('shop.name'),
+                TextColumn::make('item.name'),
+                TextColumn::make('quantity'),
+                TextColumn::make('status'),
+                TextColumn::make('allocated_quantity'),
+                TextColumn::make('created_at')->dateTime(),
             ])
             ->filters([])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Action::make('allocate')
+                    ->form([
+                        TextInput::make('allocated_quantity')
+                            ->numeric()
+                            ->required()
+                            ->minValue(0)
+                    ])
+                    ->action(function (StockRequest $record, array $data): void {
+                        DB::transaction(function () use ($record, $data) {
+                            // Calculate the change in allocation
+                            $allocationDifference = $data['allocated_quantity'] - $record->allocated_quantity;
+
+                            // Load the item with fresh data
+                            $item = $record->item()->lockForUpdate()->first();
+
+                            // Update item quantity
+                            $item->quantity -= $allocationDifference;
+                            $item->save();
+
+                            // Update stock request
+                            $record->update([
+                                'allocated_quantity' => $data['allocated_quantity'],
+                                'status' => 'approved'
+                            ]);
+                        });
+                    })
+                    ->visible(fn (StockRequest $record): bool => $record->status !== 'rejected')
+                    ->requiresConfirmation(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
-    }
-
-    public static function getRelations(): array
-    {
-        return [];
     }
 
     public static function getPages(): array
