@@ -42,7 +42,7 @@ Admin Panel: http://localhost:8000/admin
 
 Shop Login: http://localhost:8000/login
 
-Create shops through the admin panel or using tinker: php artisan tinker
+Create shops using tinker: ```php artisan tinker``` and then pasting:
 ```
 \App\Models\Shop::create([
     'name' => 'Shop Name',
