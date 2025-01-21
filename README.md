@@ -29,9 +29,9 @@ Admin panel (http://localhost:8000/admin/stock-requests):</br>
 git clone https://github.com/samilkorkmaz/stock-management
 cd stock-management
 composer install
-???npm install
-???npm run build
-cp .env.example .env
+npm install
+npm run build
+copy .env.example as .env
 php artisan key:generate
 php artisan migrate
 php artisan make:filament-user
