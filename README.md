@@ -1,6 +1,6 @@
 # Laravel Stock Management System
 
-A simple stock management system built with Laravel 11 and Filament, allowing shops to request items from central inventory and administrators to manage stock allocation.
+A simple stock management system built with Laravel 11 using Breeze and Filament, allowing shops to request items from central inventory and administrators to manage stock allocation.
 
 Shop panel (http://localhost:8000/dashboard):</br>
 ![image](https://github.com/user-attachments/assets/cbb6a348-ec15-41d7-9337-0dccc937a1f5)
