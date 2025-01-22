@@ -20,10 +20,11 @@ Admin panel (http://localhost:8000/admin/stock-requests):</br>
 
 ## Requirements
 
-- PHP 8.2 or higher
+- PHP 8.2+
 - Composer
+- Laravel 11+
 - Node.js & NPM
-- SQLite
+- SQLite3
 
 ## Installation
 First install PHP, composer and Laravel. Then do the following to run it locally:
