@@ -35,6 +35,7 @@ npm install
 npm run build
 copy .env.example as .env
 php artisan key:generate
+sqlite3 database/database.sqlite ".databases"
 php artisan migrate:fresh --seed
 php artisan make:filament-user
 php artisan serve
