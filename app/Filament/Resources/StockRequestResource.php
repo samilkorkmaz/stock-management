@@ -11,8 +11,8 @@ use Filament\Tables\Table;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Validation\Rule;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 
 class StockRequestResource extends Resource
 {
@@ -41,37 +41,20 @@ class StockRequestResource extends Resource
                         'approved' => 'Approved',
                         'rejected' => 'Rejected',
                     ])
-                    ->required(),
+                    ->required()
+                    ->live()
+                    ->afterStateUpdated(function ($state, Get $get, Set $set) {
+                        if ($state === 'approved') {
+                            $set('allocated_quantity', $get('quantity'));
+                        } else {
+                            $set('allocated_quantity', 0);
+                        }
+                    }),
                 TextInput::make('allocated_quantity')
                     ->numeric()
                     ->required()
-                    ->afterStateHydrated(function (TextInput $component, $state, ?StockRequest $record) {
-                        if ($record && !$state) {
-                            $component->state($record->quantity);
-                        }
-                    })
-                    ->rules(['required', 'numeric', 'min:1'])
-                    ->validationMessages([
-                        'required' => 'Please enter an allocation amount',
-                        'numeric' => 'The allocation must be a number',
-                        'min' => 'The allocation must be at least 1',
-                    ])
-                    ->live()
-                    ->dehydrateStateUsing(function ($state, StockRequest $record) {
-                        if ($state > $record->quantity) {
-                            throw new \Exception("Cannot allocate more than requested quantity ({$record->quantity} units)");
-                        }
-
-                        $item = $record->item;
-                        $currentAllocated = $record->allocated_quantity;
-                        $availableStock = $item->quantity + $currentAllocated;
-
-                        if ($state > $availableStock) {
-                            throw new \Exception("Cannot allocate more than available stock ({$availableStock} units available)");
-                        }
-
-                        return $state;
-                    }),
+                    ->hidden(fn (Get $get): bool => $get('status') !== 'approved')
+                    ->default(fn (Get $get): int => $get('quantity'))
             ]);
     }
 
@@ -110,28 +93,5 @@ class StockRequestResource extends Resource
             'create' => Pages\CreateStockRequest::route('/create'),
             'edit' => Pages\EditStockRequest::route('/{record}/edit'),
         ];
-    }
-
-    public static function beforeSave(Model $record): void
-    {
-        if ($record->isDirty('status') && $record->status === 'approved') {
-            // Update item stock
-            $item = $record->item;
-            if ($record->getOriginal('allocated_quantity') > 0) {
-                // Return previously allocated stock
-                $item->increment('quantity', $record->getOriginal('allocated_quantity'));
-            }
-            // Deduct newly allocated stock
-            $item->decrement('quantity', $record->allocated_quantity);
-        }
-
-        // If status changes to rejected or pending, return any allocated stock
-        if ($record->isDirty('status') &&
-            ($record->status === 'rejected' || $record->status === 'pending') &&
-            $record->getOriginal('allocated_quantity') > 0) {
-
-            $record->item->increment('quantity', $record->getOriginal('allocated_quantity'));
-            $record->allocated_quantity = 0;
-        }
     }
 }
