@@ -11,8 +11,8 @@ use Filament\Tables\Table;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Actions\Action;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\Rule;
 
 class StockRequestResource extends Resource
 {
@@ -25,13 +25,16 @@ class StockRequestResource extends Resource
             ->schema([
                 Select::make('shop_id')
                     ->relationship('shop', 'name')
-                    ->required(),
+                    ->required()
+                    ->disabled(),
                 Select::make('item_id')
                     ->relationship('item', 'name')
-                    ->required(),
+                    ->required()
+                    ->disabled(),
                 TextInput::make('quantity')
                     ->numeric()
-                    ->required(),
+                    ->required()
+                    ->disabled(),
                 Select::make('status')
                     ->options([
                         'pending' => 'Pending',
@@ -41,7 +44,34 @@ class StockRequestResource extends Resource
                     ->required(),
                 TextInput::make('allocated_quantity')
                     ->numeric()
-                    ->default(0),
+                    ->required()
+                    ->afterStateHydrated(function (TextInput $component, $state, ?StockRequest $record) {
+                        if ($record && !$state) {
+                            $component->state($record->quantity);
+                        }
+                    })
+                    ->rules(['required', 'numeric', 'min:1'])
+                    ->validationMessages([
+                        'required' => 'Please enter an allocation amount',
+                        'numeric' => 'The allocation must be a number',
+                        'min' => 'The allocation must be at least 1',
+                    ])
+                    ->live()
+                    ->dehydrateStateUsing(function ($state, StockRequest $record) {
+                        if ($state > $record->quantity) {
+                            throw new \Exception("Cannot allocate more than requested quantity ({$record->quantity} units)");
+                        }
+
+                        $item = $record->item;
+                        $currentAllocated = $record->allocated_quantity;
+                        $availableStock = $item->quantity + $currentAllocated;
+
+                        if ($state > $availableStock) {
+                            throw new \Exception("Cannot allocate more than available stock ({$availableStock} units available)");
+                        }
+
+                        return $state;
+                    }),
             ]);
     }
 
@@ -52,41 +82,19 @@ class StockRequestResource extends Resource
                 TextColumn::make('shop.name'),
                 TextColumn::make('item.name'),
                 TextColumn::make('quantity'),
-                TextColumn::make('status'),
+                TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'approved' => 'success',
+                        'rejected' => 'danger',
+                        'pending' => 'warning',
+                    }),
                 TextColumn::make('allocated_quantity'),
                 TextColumn::make('created_at')->dateTime(),
             ])
             ->filters([])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Action::make('allocate')
-                    ->form([
-                        TextInput::make('allocated_quantity')
-                            ->numeric()
-                            ->required()
-                            ->minValue(0)
-                    ])
-                    ->action(function (StockRequest $record, array $data): void {
-                        DB::transaction(function () use ($record, $data) {
-                            // Calculate the change in allocation
-                            $allocationDifference = $data['allocated_quantity'] - $record->allocated_quantity;
-
-                            // Load the item with fresh data
-                            $item = $record->item()->lockForUpdate()->first();
-
-                            // Update item quantity
-                            $item->quantity -= $allocationDifference;
-                            $item->save();
-
-                            // Update stock request
-                            $record->update([
-                                'allocated_quantity' => $data['allocated_quantity'],
-                                'status' => 'approved'
-                            ]);
-                        });
-                    })
-                    ->visible(fn (StockRequest $record): bool => $record->status !== 'rejected')
-                    ->requiresConfirmation(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -102,5 +110,28 @@ class StockRequestResource extends Resource
             'create' => Pages\CreateStockRequest::route('/create'),
             'edit' => Pages\EditStockRequest::route('/{record}/edit'),
         ];
+    }
+
+    public static function beforeSave(Model $record): void
+    {
+        if ($record->isDirty('status') && $record->status === 'approved') {
+            // Update item stock
+            $item = $record->item;
+            if ($record->getOriginal('allocated_quantity') > 0) {
+                // Return previously allocated stock
+                $item->increment('quantity', $record->getOriginal('allocated_quantity'));
+            }
+            // Deduct newly allocated stock
+            $item->decrement('quantity', $record->allocated_quantity);
+        }
+
+        // If status changes to rejected or pending, return any allocated stock
+        if ($record->isDirty('status') &&
+            ($record->status === 'rejected' || $record->status === 'pending') &&
+            $record->getOriginal('allocated_quantity') > 0) {
+
+            $record->item->increment('quantity', $record->getOriginal('allocated_quantity'));
+            $record->allocated_quantity = 0;
+        }
     }
 }
