@@ -27,7 +27,7 @@ Admin panel (http://localhost:8000/admin/stock-requests):</br>
 - SQLite3
 
 ## Installation
-First install PHP, composer and Laravel. Then do the following to run it locally:
+First install PHP, composer and Laravel. Then do the following to run this repo locally:
 ```
 git clone https://github.com/samilkorkmaz/stock-management
 cd stock-management
